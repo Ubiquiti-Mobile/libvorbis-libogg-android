@@ -211,8 +211,6 @@ int startEncoding(JNIEnv *env, jclass *cls_ptr, jlong *sampleRate_ptr, jlong *ch
       while(!eos){
         int result=ogg_stream_flush(&os,&og);
         if(result==0)break;
-        writeVorbisDataToEncoderDataFeed(env, &encoderDataFeed, &writeVorbisDataMethodId, og.header, og.header_len, &jByteArrayWriteBuffer);
-        writeVorbisDataToEncoderDataFeed(env, &encoderDataFeed, &writeVorbisDataMethodId, og.body, og.body_len, &jByteArrayWriteBuffer);
       }
 
     }
@@ -260,21 +258,8 @@ int startEncoding(JNIEnv *env, jclass *cls_ptr, jlong *sampleRate_ptr, jlong *ch
 
         while(vorbis_bitrate_flushpacket(&vd,&op)){
 
-          /* weld the packet into the bitstream */
-          ogg_stream_packetin(&os,&op);
-
-          /* write out pages (if any) */
-          while(!eos){
-            int result=ogg_stream_pageout(&os,&og);
-            if(result==0)break;
-            writeVorbisDataToEncoderDataFeed(env, &encoderDataFeed, &writeVorbisDataMethodId, og.header, og.header_len, &jByteArrayWriteBuffer);
-            writeVorbisDataToEncoderDataFeed(env, &encoderDataFeed, &writeVorbisDataMethodId, og.body, og.body_len, &jByteArrayWriteBuffer);
-
-            /* this could be set above, but for illustrative purposes, I do
-               it here (to show that vorbis does know where the stream ends) */
-
-            if(ogg_page_eos(&og))eos=1;
-          }
+          /* write out vorbis packet */
+          writeVorbisDataToEncoderDataFeed(env, &encoderDataFeed, &writeVorbisDataMethodId, op.packet, op.bytes, &jByteArrayWriteBuffer);
         }
       }
     }
@@ -292,9 +277,7 @@ int startEncoding(JNIEnv *env, jclass *cls_ptr, jlong *sampleRate_ptr, jlong *ch
     __android_log_print(ANDROID_LOG_INFO, "VorbisEncoder", "Completed encoding.");
     stopEncodeFeed(env, &encoderDataFeed, &stopMethodId);
 
-    //Clean up encode buffers
-    (*env)->DeleteLocalRef(env, jByteArrayBuffer);
-    (*env)->DeleteLocalRef(env, jByteArrayWriteBuffer);
+    //Clean up done by java gc
 
     return SUCCESS;
 }

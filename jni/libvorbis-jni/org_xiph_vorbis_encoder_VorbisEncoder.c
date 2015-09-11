@@ -260,6 +260,19 @@ int startEncoding(JNIEnv *env, jclass *cls_ptr, jlong *sampleRate_ptr, jlong *ch
 
           /* write out vorbis packet */
           writeVorbisDataToEncoderDataFeed(env, &encoderDataFeed, &writeVorbisDataMethodId, op.packet, op.bytes, &jByteArrayWriteBuffer);
+
+          ogg_stream_packetin(&os,&op);
+
+          /* write out pages (if any) */
+          while(!eos){
+            int result=ogg_stream_pageout(&os,&og);
+            if(result==0)break;
+
+            /* this could be set above, but for illustrative purposes, I do
+               it here (to show that vorbis does know where the stream ends) */
+
+            if(ogg_page_eos(&og))eos=1;
+          }
         }
       }
     }
